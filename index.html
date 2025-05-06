@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Beeminder Config</title>
+  <meta charset="utf-8" />
+  <script>
+    let configToken;
+    let config = {};
+
+    const fetchConfig = async () => {
+      const hash = decodeURIComponent(location.hash.substring(1));
+      const { partnerConfigurationToken } = JSON.parse(hash);
+      configToken = partnerConfigurationToken;
+
+      const res = await fetch(`https://api.chaster.app/api/extensions/configurations/${configToken}`, {
+        headers: { Authorization: "Bearer YOUR_CHASTER_DEV_TOKEN" } // Replace during dev/test
+      });
+      const data = await res.json();
+      config = data.config || {};
+
+      document.getElementById("username").value = config.username || "";
+      document.getElementById("token").value = config.token || "";
+      document.getElementById("goal").value = config.goal || "lockdown";
+    };
+
+    const postSave = async () => {
+      const newConfig = {
+        username: document.getElementById("username").value,
+        token: document.getElementById("token").value,
+        goal: document.getElementById("goal").value
+      };
+
+      await fetch(`https://api.chaster.app/api/extensions/configurations/${configToken}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer YOUR_CHASTER_DEV_TOKEN" // Replace during dev/test
+        },
+        body: JSON.stringify(newConfig)
+      });
+
+      window.parent.postMessage(JSON.stringify({ type: "partner_configuration", event: "save_success" }), "*");
+    };
+
+    window.addEventListener("message", async (e) => {
+      const { type, event } = JSON.parse(e.data);
+      if (type === "chaster" && event === "partner_configuration_save") {
+        await postSave();
+      }
+    });
+
+    window.onload = () => {
+      fetchConfig();
+      window.parent.postMessage(JSON.stringify({
+        type: "partner_configuration",
+        event: "capabilities",
+        payload: { features: { save: true } }
+      }), "*");
+    };
+  </script>
+</head>
+<body>
+  <h3>Beeminder Goal Configuration</h3>
+  <label>Beeminder Username: <input type="text" id="username"></label><br />
+  <label>Auth Token: <input type="text" id="token"></label><br />
+  <label>Goal Slug: <input type="text" id="goal"></label><br />
+</body>
+</html>
