@@ -7,20 +7,42 @@
     let configToken;
     let config = {};
 
+    const fetchGoals = async () => {
+      const username = document.getElementById("username").value;
+      const token = document.getElementById("token").value;
+      const goalSelect = document.getElementById("goal");
+
+      if (!username || !token) return;
+
+      const res = await fetch(`https://www.beeminder.com/api/v1/users/${username}/goals.json?auth_token=${token}`);
+      if (!res.ok) return alert("Error fetching Beeminder goals");
+
+      const goals = await res.json();
+      goalSelect.innerHTML = "";
+      goals.forEach(g => {
+        const opt = document.createElement("option");
+        opt.value = g.slug;
+        opt.innerText = g.title || g.slug;
+        goalSelect.appendChild(opt);
+      });
+
+      if (config.goal) goalSelect.value = config.goal;
+    };
+
     const fetchConfig = async () => {
       const hash = decodeURIComponent(location.hash.substring(1));
       const { partnerConfigurationToken } = JSON.parse(hash);
       configToken = partnerConfigurationToken;
 
       const res = await fetch(`https://api.chaster.app/api/extensions/configurations/${configToken}`, {
-        headers: { Authorization: "Bearer YOUR_CHASTER_DEV_TOKEN" } // Replace during dev/test
+        headers: { Authorization: "Bearer LO4quEn5Of2envdUzAbLqZbbeMQR0tYK" }
       });
       const data = await res.json();
       config = data.config || {};
 
       document.getElementById("username").value = config.username || "";
       document.getElementById("token").value = config.token || "";
-      document.getElementById("goal").value = config.goal || "lockdown";
+      if (config.username && config.token) await fetchGoals();
     };
 
     const postSave = async () => {
@@ -34,7 +56,7 @@
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
-          Authorization: "Bearer YOUR_CHASTER_DEV_TOKEN" // Replace during dev/test
+          Authorization: "Bearer LO4quEn5Of2envdUzAbLqZbbeMQR0tYK"
         },
         body: JSON.stringify(newConfig)
       });
@@ -51,6 +73,7 @@
 
     window.onload = () => {
       fetchConfig();
+      document.getElementById("loadGoals").onclick = fetchGoals;
       window.parent.postMessage(JSON.stringify({
         type: "partner_configuration",
         event: "capabilities",
@@ -60,9 +83,12 @@
   </script>
 </head>
 <body>
-  <h3>Beeminder Goal Configuration</h3>
+  <h3>Configure Beeminder Goal</h3>
   <label>Beeminder Username: <input type="text" id="username"></label><br />
   <label>Auth Token: <input type="text" id="token"></label><br />
-  <label>Goal Slug: <input type="text" id="goal"></label><br />
+  <button type="button" id="loadGoals">Load Goals</button><br /><br />
+  <label>Choose Goal:
+    <select id="goal"></select>
+  </label><br />
 </body>
 </html>
